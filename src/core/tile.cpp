@@ -1,5 +1,6 @@
 #include "airphoto_viewer/core/tile.h"
 #include <QPainter>
+#include <opencv2/opencv.hpp>
 
 namespace airphoto_viewer {
 namespace core {

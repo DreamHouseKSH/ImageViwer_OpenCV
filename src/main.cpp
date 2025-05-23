@@ -12,6 +12,9 @@
 #include <QAction>
 #include <QStatusBar>
 #include <QDebug>
+#include <QVBoxLayout>
+#include <QImageReader>
+#include <QDir>
 
 #include <opencv2/opencv.hpp>
 
@@ -61,6 +64,42 @@ public:
     }
     
     ~ImageViewer() {}
+    
+public:
+    void loadImage(const QString &fileName) {
+        QImageReader reader(fileName);
+        reader.setAutoTransform(true);
+        const QImage newImage = reader.read();
+        
+        if (newImage.isNull()) {
+            // OpenCV를 사용하여 이미지 로드 시도
+            cv::Mat cvImage = cv::imread(fileName.toStdString());
+            if (cvImage.empty()) {
+                QMessageBox::warning(this, tr("이미지 뷰어"),
+                                   tr("이미지를 로드할 수 없습니다: %1")
+                                   .arg(reader.errorString()));
+                return;
+            }
+            
+            // OpenCV 이미지를 QImage로 변환
+            QImage qImage(cvImage.data, cvImage.cols, cvImage.rows, 
+                         static_cast<int>(cvImage.step), 
+                         QImage::Format_BGR888);
+            
+            setImage(qImage);
+        } else {
+            setImage(newImage);
+        }
+        
+        setWindowFilePath(fileName);
+        
+        const QString message = tr("\"%1\", %2x%3, %4비트")
+            .arg(QDir::toNativeSeparators(fileName))
+            .arg(imageLabel->pixmap(Qt::ReturnByValue).width())
+            .arg(imageLabel->pixmap(Qt::ReturnByValue).height())
+            .arg(QImageReader::imageFormat(fileName).toUpper());
+        statusBar()->showMessage(message);
+    }
 
 private slots:
     void open() {
@@ -168,41 +207,6 @@ private:
                             + ((factor - 1) * scrollBar->pageStep()/2)));
     }
     
-    void loadImage(const QString &fileName) {
-        QImageReader reader(fileName);
-        reader.setAutoTransform(true);
-        const QImage newImage = reader.read();
-        
-        if (newImage.isNull()) {
-            // OpenCV를 사용하여 이미지 로드 시도
-            cv::Mat cvImage = cv::imread(fileName.toStdString());
-            if (cvImage.empty()) {
-                QMessageBox::warning(this, tr("이미지 뷰어"),
-                                   tr("이미지를 로드할 수 없습니다: %1")
-                                   .arg(reader.errorString()));
-                return;
-            }
-            
-            // OpenCV 이미지를 QImage로 변환
-            QImage qImage(cvImage.data, cvImage.cols, cvImage.rows, 
-                         static_cast<int>(cvImage.step), 
-                         QImage::Format_BGR888);
-            
-            setImage(qImage);
-        } else {
-            setImage(newImage);
-        }
-        
-        setWindowFilePath(fileName);
-        
-        const QString message = tr("\"%1\", %2x%3, %4비트")
-            .arg(QDir::toNativeSeparators(fileName))
-            .arg(imageLabel->pixmap(Qt::ReturnByValue).width())
-            .arg(imageLabel->pixmap(Qt::ReturnByValue).height())
-            .arg(QImageReader::imageFormat(fileName).toUpper());
-        statusBar()->showMessage(message);
-    }
-    
     void setImage(const QImage &newImage) {
         image = newImage;
         imageLabel->setPixmap(QPixmap::fromImage(image));
@@ -255,3 +259,5 @@ int main(int argc, char *argv[]) {
 }
 
 #include "main.moc"
+
+

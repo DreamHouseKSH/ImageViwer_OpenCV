@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QString>
+#include <QFileDialog>
 #include <memory>
 
 // Forward declarations
@@ -27,6 +28,7 @@ public:
 
 protected:
     void closeEvent(QCloseEvent* event) override;
+    bool event(QEvent* event) override;
 
 private slots:
     // File menu actions
@@ -66,6 +68,8 @@ private:
     void updateRecentFileActions();
     void readSettings();
     void writeSettings();
+    bool hasRecentFiles() const;
+    void initializeImageFileDialog(QFileDialog &dialog, QFileDialog::AcceptMode acceptMode);
     
     // Member variables
     std::unique_ptr<TileView> m_tileView;

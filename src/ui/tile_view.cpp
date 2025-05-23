@@ -6,6 +6,7 @@
 #include <QtMath>
 #include <QElapsedTimer>
 #include <QThread>
+#include <QDateTime>
 
 namespace airphoto_viewer {
 namespace ui {
@@ -332,32 +333,49 @@ void TileView::keyPressEvent(QKeyEvent* event) {
 
 bool TileView::event(QEvent* event) {
     // Handle touch events for pinch-to-zoom
-    if (event->type() == QEvent::TouchBegin || 
-        event->type() == QEvent::TouchUpdate || 
-        event->type() == QEvent::TouchEnd) {
-        
+    if (event->type() == QEvent::TouchBegin || event->type() == QEvent::TouchUpdate || event->type() == QEvent::TouchEnd) {
         QTouchEvent* touchEvent = static_cast<QTouchEvent*>(event);
-        QList<QTouchEvent::TouchPoint> touchPoints = touchEvent->touchPoints();
+        const auto touchPoints = touchEvent->points();
         
         if (touchPoints.count() == 2) {
-            // Calculate the distance between the two touch points
-            const QTouchEvent::TouchPoint &touchPoint0 = touchPoints.first();
-            const QTouchEvent::TouchPoint &touchPoint1 = touchPoints.last();
+            // Handle pinch gesture
+            const auto& point0 = touchPoints[0];
+            const auto& point1 = touchPoints[1];
             
-            qreal currentScale = m_scale;
-            qreal newScale = currentScale * touchEvent->scaleFactor();
+            // Calculate the current and previous distances between the two touch points
+            QPointF currentPos1 = point0.position();
+            QPointF currentPos2 = point1.position();
+            QPointF lastPos1 = point0.lastPosition();
+            QPointF lastPos2 = point1.lastPosition();
             
-            // Limit the scale factor
+            qreal currentDist = QLineF(currentPos1, currentPos2).length();
+            qreal lastDist = QLineF(lastPos1, lastPos2).length();
+            
+            if (lastDist == 0.0) {
+                return true; // Avoid division by zero
+            }
+            
+            qreal scaleFactor = currentDist / lastDist;
+            qreal newScale = m_scale * scaleFactor;
             newScale = qBound(0.1, newScale, 100.0);
             
-            // Calculate the center point between the two touch points
-            QPointF centerPoint = (touchPoint0.pos() + touchPoint1.pos()) / 2.0;
+            // Calculate center point between the two fingers
+            QPointF centerPoint = (currentPos1 + currentPos2) / 2.0;
             
-            // Update the view
-            zoom(newScale / currentScale, centerPoint.toPoint());
+            // Convert to image coordinates
+            QPointF imgCenter = mapToImage(centerPoint.toPoint());
+            
+            // Apply new scale
+            m_scale = newScale;
+            
+            // Adjust offset to zoom toward the center point
+            m_offset = (imgCenter * (newScale / m_scale) - centerPoint) * -1.0;
+            
+            update();
+            scheduleUpdate();
             
             return true;
-        }
+        }  
     }
     
     return QWidget::event(event);

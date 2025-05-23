@@ -2,6 +2,7 @@
 #include <string>
 #include <iomanip>
 #include <chrono>
+#include <fstream>
 
 #include "airphoto_viewer/ImageData.hpp"
 

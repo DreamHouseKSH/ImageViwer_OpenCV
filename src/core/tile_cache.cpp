@@ -2,6 +2,7 @@
 #include <QDebug>
 #include <chrono>
 #include <numeric>
+#include <opencv2/opencv.hpp>
 
 namespace airphoto_viewer {
 namespace core {

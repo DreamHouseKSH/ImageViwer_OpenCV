@@ -45,9 +45,12 @@ include_directories(
 # 소스 파일 추가
 file(GLOB_RECURSE SOURCES 
     "src/*.cpp" 
-    "src/*.hpp" 
-    "src/*.h"
+    "src/*/*.cpp"
+    "src/*/*/*.cpp"
     "include/airphoto_viewer/*.hpp"
+    "include/airphoto_viewer/*.h"
+    "include/airphoto_viewer/*/*.hpp"
+    "include/airphoto_viewer/*/*.h"
 )
 
 # 메인 실행 파일 생성

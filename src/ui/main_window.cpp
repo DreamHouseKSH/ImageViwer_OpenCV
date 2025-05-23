@@ -5,16 +5,19 @@
 #include <QApplication>
 #include <QCloseEvent>
 #include <QDebug>
+#include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QImageReader>
 #include <QImageWriter>
 #include <QLabel>
+#include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QScreen>
 #include <QSettings>
+#include <QStandardPaths>
 #include <QStatusBar>
 #include <QToolBar>
 #include <QUrl>
@@ -399,9 +402,33 @@ void MainWindow::setCurrentFile(const QString& fileName) {
     updateActions();
 }
 
-bool MainWindow::hasRecentFiles() {
+bool MainWindow::hasRecentFiles() const {
     QSettings settings;
     return !settings.value(kRecentFilesKey).toStringList().isEmpty();
+}
+
+void MainWindow::initializeImageFileDialog(QFileDialog &dialog, QFileDialog::AcceptMode acceptMode) {
+    static bool firstDialog = true;
+
+    if (firstDialog) {
+        firstDialog = false;
+        const QStringList picturesLocations = QStandardPaths::standardLocations(QStandardPaths::PicturesLocation);
+        dialog.setDirectory(picturesLocations.isEmpty() ? QDir::currentPath() : picturesLocations.last());
+    }
+
+    QStringList mimeTypeFilters;
+    const QByteArrayList supportedMimeTypes = acceptMode == QFileDialog::AcceptOpen
+        ? QImageReader::supportedMimeTypes() : QImageWriter::supportedMimeTypes();
+    
+    for (const QByteArray &mimeTypeName : supportedMimeTypes)
+        mimeTypeFilters.append(mimeTypeName);
+    mimeTypeFilters.sort();
+    
+    dialog.setMimeTypeFilters(mimeTypeFilters);
+    dialog.selectMimeTypeFilter("image/jpeg");
+    dialog.setAcceptMode(acceptMode);
+    if (acceptMode == QFileDialog::AcceptSave)
+        dialog.setDefaultSuffix("jpg");
 }
 
 void MainWindow::updateRecentFileActions() {
@@ -484,3 +511,6 @@ bool MainWindow::event(QEvent* event) {
     
     return QMainWindow::event(event);
 }
+
+} // namespace ui
+} // namespace airphoto_viewer

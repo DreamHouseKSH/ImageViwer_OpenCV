@@ -130,7 +130,7 @@ private:
     // Member variables
     std::unique_ptr<ThreadPool> threadPool;
     std::unordered_map<TileKey, CacheEntry, TileKey::Hash> cache;
-    std::mutex cacheMutex;
+    mutable std::mutex cacheMutex;  // Marked as mutable for const operations
     size_t maxMemory;
     size_t currentMemoryUsage;
     cv::Mat sourceImage;
