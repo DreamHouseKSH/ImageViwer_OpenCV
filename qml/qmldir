@@ -1,0 +1,4 @@
+module AirPhoto.Viewer.Measurement
+typeinfo MeasurementPlugin.qmltypes
+plugin airphoto_measurement
+classname MeasurementPlugin

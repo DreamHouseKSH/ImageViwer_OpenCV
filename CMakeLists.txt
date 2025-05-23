@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 project(airphoto_viewer VERSION 0.1.0 LANGUAGES CXX)
 
+# QML 모듈 버전 설정
+set(MEASUREMENT_MODULE_MAJOR_VERSION 1)
+set(MEASUREMENT_MODULE_MINOR_VERSION 0)
+set(MEASUREMENT_MODULE_VERSION ${MEASUREMENT_MODULE_MAJOR_VERSION}.${MEASUREMENT_MODULE_MINOR_VERSION})
+
 # C++17 표준 사용
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -99,7 +104,28 @@ include_directories(
     ${OpenCV_INCLUDE_DIRS}
 )
 
-# 소스 파일 추가
+# 측정 도구 모듈 소스 파일
+set(MEASUREMENT_TOOL_SOURCES
+    "src/tools/MeasurementTool.cpp"
+    "src/tools/MeasurementOverlay.cpp"
+    "src/tools/MeasurementPlugin.cpp"
+)
+
+# QML 모듈 리소스 파일
+qt_add_qml_module(airphoto_measurement
+    URI "AirPhoto/Viewer/Measurement"
+    VERSION ${MEASUREMENT_MODULE_MAJOR_VERSION}.${MEASUREMENT_MODULE_MINOR_VERSION}
+    QML_FILES
+        "qml/MeasurementTool.qml"
+        "qml/MeasurementOverlay.qml"
+    SOURCES
+        ${MEASUREMENT_TOOL_SOURCES}
+        "include/airphoto_viewer/MeasurementTool.hpp"
+        "include/airphoto_viewer/MeasurementOverlay.hpp"
+        "include/airphoto_viewer/MeasurementPlugin.hpp"
+)
+
+# 메인 애플리케이션 소스 파일
 file(GLOB_RECURSE SOURCES 
     "src/*.cpp" 
     "src/*/*.cpp"
@@ -108,6 +134,13 @@ file(GLOB_RECURSE SOURCES
     "include/airphoto_viewer/*.h"
     "include/airphoto_viewer/*/*.hpp"
     "include/airphoto_viewer/*/*.h"
+    "${CMAKE_CURRENT_BINARY_DIR}/airphoto_measurement_qmltyperegistrations.cpp"
+)
+
+# QML 모듈 컴파일 디렉토리 추가
+include_directories(
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/airphoto_measurement_autogen/include_
 )
 
 # 메인 실행 파일 생성
@@ -151,10 +184,53 @@ target_link_libraries(airphoto_viewer
     Qt6::Core 
     Qt6::Gui 
     Qt6::Widgets
+    Qt6::Qml
+    Qt6::Quick
     exiv2lib
     ${TIFF_LIBRARIES}
     ${TIFF_LINK_LIBRARIES}
+    airphoto_measurement
 )
+
+# QML 모듈 설치 경로 설정
+install(TARGETS airphoto_measurement
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+# 예제 애플리케이션
+add_executable(measurement_example examples/MeasurementExample.qml)
+set_target_properties(measurement_example PROPERTIES
+    WIN32_EXECUTABLE TRUE
+    MACOSX_BUNDLE TRUE
+)
+
+target_link_libraries(measurement_example
+    PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Qml
+    Qt6::Quick
+    Qt6::QuickControls2
+    airphoto_measurement
+)
+
+# QML 모듈 임포트 경로 설정
+target_compile_definitions(measurement_example
+    PRIVATE
+    QT_QML_DEBUG
+    QT_DECLARATIVE_DEBUG
+)
+
+# QML 모듈 임포트 경로 설정 (개발 중에는 빌드 디렉토리 사용)
+set(QML_IMPORT_PATH "${CMAKE_CURRENT_BINARY_DIR}")
+set(QML2_IMPORT_PATH "${CMAKE_CURRENT_BINARY_DIR}")
+set(QT_QML_MODULES "${CMAKE_CURRENT_BINARY_DIR}")
+
+# QML 모듈 임포트 경로를 환경 변수로 설정
+set(ENV{QML2_IMPORT_PATH} "${QML_IMPORT_PATH}")
+set(ENV{QT_QML_MODULES} "${QT_QML_MODULES}")
 
 # TIFF 로더 테스트
 set(TEST_TIFF_LOADER_SOURCES
