@@ -40,28 +40,12 @@
 *.idb
 *.pdb
 
-# Build directories
-build/
-bin/
-bin-int/
-bin-*
-build-*/
-*.xcodeproj
-*.xcworkspace
-.vs/
-*.vcxproj*
-*.sln
-*.user
-*.suo
-*.sdf
-*.opensdf
-*.VC.db
-*.VC.VC.opendb
-*.opendb
-
-# Executable
-airphoto_viewer
-airphoto_viewer.exe
+# Build outputs
+/build/
+/bin/
+/bin-int/
+/bin-*/
+/build-*/
 *.app
 *.exe
 *.dll
@@ -69,13 +53,29 @@ airphoto_viewer.exe
 *.dylib
 *.a
 *.lib
-*.dll.a
-*.dylib
 *.pdb
 *.exp
+*.ilk
+*.idb
+*.pch
+*.ipch
+*.obj
+*.o
+*.sln
+*.vcxproj*
+*.user
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.VC.opendb
+*.opendb
+*.xcodeproj
+*.xcworkspace
 
 # IDE specific files
 .idea/
+.vs/
 .vscode/
 *.code-workspace
 
@@ -88,12 +88,24 @@ airphoto_viewer.exe
 ehthumbs.db
 Thumbs.db
 
-# Test images
-test_images/
+# Test files
+/test_images/
 
 # Local development environment
 .env
 *.local
+
+# Don't ignore include and src directories
+!include/
+!src/
+!*.h
+!*.hpp
+!*.cpp
+!*.md
+!*.txt
+!CMakeLists.txt
+!*.cmake
+!*.sh
 .vscode/
 .idea/
 
