@@ -4,4 +4,6 @@
 이 모듈은 이미지 렌더링 및 표시 기능을 제공합니다.
 """
 
-__all__ = []
+from .viewer_engine import ImageViewer, main as run_viewer
+
+__all__ = ['ImageViewer', 'run_viewer']
