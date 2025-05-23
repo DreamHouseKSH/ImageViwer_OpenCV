@@ -5,27 +5,64 @@
 #include <sstream>
 #include <iomanip>
 #include <iostream>
+#include <filesystem>
 #include <exiv2/exiv2.hpp>
 #include <exiv2/image.hpp>
+#include <tiffio.h>
+
+// TIFF 태그 정의 (표준 태그 중 일부)
+#define TIFFTAG_IMAGEDESCRIPTION   270
+#define TIFFTAG_MAKE               271
+#define TIFFTAG_MODEL              272
+#define TIFFTAG_ORIENTATION        274
+#define TIFFTAG_XRESOLUTION        282
+#define TIFFTAG_YRESOLUTION        283
+#define TIFFTAG_RESOLUTIONUNIT     296
+#define TIFFTAG_SOFTWARE           305
+#define TIFFTAG_DATETIME           306
+#define TIFFTAG_ARTIST             315
+#define TIFFTAG_COLORMATRIX        33920
+#define TIFFTAG_GDAL_METADATA      42112
+#define TIFFTAG_GDAL_NODATA        42113
+
+namespace fs = std::filesystem;
 
 namespace airphoto {
 
 ImageData::ImageData(const std::string& filepath) 
     : filepath_(filepath), 
       imageData_(std::make_shared<cv::Mat>()),
-      metadata_(std::make_shared<ImageMetadata>()) {
+      metadata_(std::make_shared<ImageMetadata>()),
+      currentPage_(0),
+      pageCount_(1) {
     
     try {
-        // OpenCV를 사용하여 이미지 로드
-        *imageData_ = cv::imread(filepath, cv::IMREAD_UNCHANGED);
+        std::string ext = fs::path(filepath).extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
         
-        if (imageData_->empty()) {
-            throw std::runtime_error("Failed to load image: " + filepath);
+        if (ext == ".tif" || ext == ".tiff") {
+            // TIFF 파일인 경우 멀티페이지 처리
+            TIFF* tif = TIFFOpen(filepath.c_str(), "r");
+            if (tif) {
+                // 페이지 수 계산
+                do {
+                    pageCount_++;
+                } while (TIFFReadDirectory(tif));
+                TIFFClose(tif);
+                
+                // 첫 번째 페이지 로드
+                loadPage(0);
+            } else {
+                throw std::runtime_error("Failed to open TIFF file: " + filepath);
+            }
+        } else {
+            // 일반 이미지 파일 로드
+            *imageData_ = cv::imread(filepath, cv::IMREAD_UNCHANGED);
+            if (imageData_->empty()) {
+                throw std::runtime_error("Failed to load image: " + filepath);
+            }
+            extractMetadata();
         }
-        
-        // 메타데이터 추출
-        extractMetadata();
-        
     } catch (const std::exception& e) {
         throw std::runtime_error("Error in ImageData: " + std::string(e.what()));
     }
@@ -226,4 +263,83 @@ double ImageData::convertGpsCoordinate(const std::string& coord, const std::stri
     }
 }
 
+// getPageCount is implemented inline in the header
+
+bool ImageData::loadPage(int pageIndex) {
+    if (pageIndex < 0 || pageIndex >= pageCount_) {
+        std::cerr << "Invalid page index: " << pageIndex << std::endl;
+        return false;
+    }
+
+    std::string ext = fs::path(filepath_).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+    if (ext == ".tif" || ext == ".tiff") {
+        TIFF* tif = nullptr;
+        try {
+            tif = TIFFOpen(filepath_.c_str(), "r");
+            if (!tif) {
+                std::cerr << "Failed to open TIFF file: " << filepath_ << std::endl;
+                return false;
+            }
+
+            // 지정된 페이지로 이동
+            for (int i = 0; i <= pageIndex; i++) {
+                if (i > 0 && !TIFFReadDirectory(tif)) {
+                    std::cerr << "Failed to read directory for page " << pageIndex << std::endl;
+                    TIFFClose(tif);
+                    return false;
+                }
+            }
+
+            // 이미지 크기 가져오기
+            uint32_t width = 0, height = 0;
+            TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width);
+            TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
+
+            if (width == 0 || height == 0) {
+                std::cerr << "Invalid image dimensions: " << width << "x" << height << std::endl;
+                TIFFClose(tif);
+                return false;
+            }
+
+
+            // 메모리 할당 (4채널로 읽은 후 필요한 변환 수행)
+            cv::Mat rgbaImage(height, width, CV_8UC4);
+            
+            // TIFF에서 이미지 읽기 (RGBA 형식으로 읽음)
+            if (TIFFReadRGBAImage(tif, width, height, reinterpret_cast<uint32_t*>(rgbaImage.data), 0)) {
+                // OpenCV는 BGR 순서를 사용하므로 변환
+                cv::Mat bgrImage;
+                cv::cvtColor(rgbaImage, bgrImage, cv::COLOR_RGBA2BGR);
+                *imageData_ = bgrImage;
+                currentPage_ = pageIndex;
+                
+                // 메타데이터 추출
+                extractMetadata();
+
+                TIFFClose(tif);
+                return true;
+            } else {
+                std::cerr << "Failed to read TIFF image data for page " << pageIndex << std::endl;
+                TIFFClose(tif);
+                return false;
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error loading TIFF page: " << e.what() << std::endl;
+            if (tif) {
+                TIFFClose(tif);
+            }
+            return false;
+        }
+    } else if (pageIndex == 0) {
+        // 일반 이미지의 경우 첫 페이지만 지원
+        *imageData_ = cv::imread(filepath_, cv::IMREAD_UNCHANGED);
+        currentPage_ = 0;
+        extractMetadata();
+        return true;
+    }
+
+    return false;
+}
 } // namespace airphoto

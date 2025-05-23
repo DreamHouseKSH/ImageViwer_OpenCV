@@ -45,15 +45,38 @@ public:
      */
     bool save(const std::string& filepath) const;
 
+    /**
+     * @brief TIFF 파일의 페이지 수를 가져옵니다.
+     * @return 페이지 수 (일반 이미지의 경우 1)
+     */
+    int getPageCount() const { return pageCount_; }
+    
+    /**
+     * @brief 멀티페이지 TIFF에서 특정 페이지를 로드합니다.
+     * @param pageIndex 로드할 페이지 인덱스 (0부터 시작)
+     * @return 로드 성공 시 true, 실패 시 false
+     */
+    bool loadPage(int pageIndex);
+
+    /**
+     * @brief 현재 로드된 페이지 인덱스를 가져옵니다.
+     * @return 현재 페이지 인덱스 (0부터 시작)
+     */
+    int getCurrentPage() const { return currentPage_; }
+
 private:
     std::string filepath_;
     std::shared_ptr<cv::Mat> imageData_;
     std::shared_ptr<ImageMetadata> metadata_;
+    int currentPage_{0};  // 현재 페이지 인덱스 (0부터 시작)
+    int pageCount_{1};    // 총 페이지 수
 
     /**
      * @brief 이미지 파일에서 메타데이터를 추출합니다.
      */
     void extractMetadata();
+    
+    // Implementation of these methods is in the cpp file
 
     /**
      * @brief EXIF 데이터에서 특정 태그의 값을 가져옵니다.

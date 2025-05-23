@@ -21,6 +21,63 @@ find_package(exiv2 REQUIRED)
 # nlohmann_json 라이브러리 찾기
 find_package(nlohmann_json REQUIRED)
 
+# libtiff 라이브러리 찾기
+find_package(TIFF REQUIRED)
+if(TIFF_FOUND)
+    add_definitions(-DHAVE_TIFF)
+    include_directories(${TIFF_INCLUDE_DIRS})
+    
+    message(STATUS "Found TIFF: ${TIFF_LIBRARIES}")
+    message(STATUS "TIFF includes: ${TIFF_INCLUDE_DIRS}")
+    message(STATUS "TIFF library: ${TIFF_LIBRARY}")
+    
+    # TIFF 라이브러리 링크를 위한 변수 설정
+    set(TIFF_LINK_LIBRARIES ${TIFF_LIBRARIES})
+    
+    # macOS에서는 추가 종속성 필요
+    if(APPLE)
+        find_package(JPEG REQUIRED)
+        find_package(ZLIB REQUIRED)
+        
+        # 필요한 라이브러리 추가
+        list(APPEND TIFF_LINK_LIBRARIES
+            ${JPEG_LIBRARIES}
+            ${ZLIB_LIBRARIES}
+        )
+        
+        # macOS에서 필요한 추가 라이브러리
+        find_library(ICONV_LIBRARY iconv)
+        find_library(LZMA_LIBRARY lzma)
+        find_library(WEBP_LIBRARY webp)
+        find_library(JPEG2000_LIBRARY jpeg)
+        
+        if(ICONV_LIBRARY)
+            list(APPEND TIFF_LINK_LIBRARIES ${ICONV_LIBRARY})
+        endif()
+        if(LZMA_LIBRARY)
+            list(APPEND TIFF_LINK_LIBRARIES ${LZMA_LIBRARY})
+        endif()
+        if(WEBP_LIBRARY)
+            list(APPEND TIFF_LINK_LIBRARIES ${WEBP_LIBRARY})
+        endif()
+        if(JPEG2000_LIBRARY)
+            list(APPEND TIFF_LINK_LIBRARIES ${JPEG2000_LIBRARY})
+        endif()
+    endif()
+    
+    # 링크 디렉토리 추가
+    get_filename_component(TIFF_LIBRARY_DIR ${TIFF_LIBRARY} DIRECTORY)
+    link_directories(${TIFF_LIBRARY_DIR})
+    
+    # 모든 타겟에 TIFF 링크 추가
+    add_definitions(-DHAVE_TIFF=1)
+    
+    message(STATUS "TIFF link libraries: ${TIFF_LINK_LIBRARIES}")
+    message(STATUS "TIFF library directory: ${TIFF_LIBRARY_DIR}")
+else()
+    message(FATAL_ERROR "TIFF library not found")
+endif()
+
 # 헤더 파일 디렉토리 설정
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
@@ -95,7 +152,20 @@ target_link_libraries(airphoto_viewer
     Qt6::Gui 
     Qt6::Widgets
     exiv2lib
+    ${TIFF_LIBRARIES}
+    ${TIFF_LINK_LIBRARIES}
 )
+
+# TIFF 로더 테스트
+set(TEST_TIFF_LOADER_SOURCES
+    "test/test_tiff_loader.cpp"
+    "src/core/ImageData.cpp"
+    "src/core/ImageMetadata.cpp"
+)
+
+add_executable(test_tiff_loader ${TEST_TIFF_LOADER_SOURCES})
+
+
 
 # 테스트 실행 파일 설정
 target_include_directories(test_metadata
@@ -103,6 +173,7 @@ target_include_directories(test_metadata
     ${CMAKE_SOURCE_DIR}/include
     ${OpenCV_INCLUDE_DIRS}
     ${EXIV2_INCLUDE_DIR}
+    ${TIFF_INCLUDE_DIR}
 )
 
 target_link_libraries(test_metadata
@@ -110,13 +181,44 @@ target_link_libraries(test_metadata
     ${OpenCV_LIBS}
     exiv2lib
     nlohmann_json::nlohmann_json
+    ${TIFF_LIBRARIES}
+    ${TIFF_LINK_LIBRARIES}
+)
+
+target_include_directories(test_metadata_simple
+    PRIVATE 
+    ${CMAKE_SOURCE_DIR}/include
+    ${OpenCV_INCLUDE_DIRS}
+    ${EXIV2_INCLUDE_DIR}
+    ${TIFF_INCLUDE_DIR}
 )
 
 target_link_libraries(test_metadata_simple
-    PRIVATE
+    PRIVATE 
     ${OpenCV_LIBS}
     exiv2lib
+    ${TIFF_LIBRARIES}
+    ${TIFF_LINK_LIBRARIES}
 )
+
+target_include_directories(test_tiff_loader
+    PRIVATE 
+    ${CMAKE_SOURCE_DIR}/include
+    ${OpenCV_INCLUDE_DIRS}
+    ${EXIV2_INCLUDE_DIR}
+    ${TIFF_INCLUDE_DIR}
+)
+
+target_link_libraries(test_tiff_loader
+    PRIVATE 
+    ${OpenCV_LIBS}
+    exiv2lib
+    ${TIFF_LIBRARIES}
+    ${TIFF_LINK_LIBRARIES}
+)
+
+# 테스트 타겟에 추가
+add_test(NAME test_tiff_loader COMMAND test_tiff_loader)
 
 # 설치 타겟 설정
 install(TARGETS airphoto_viewer
