@@ -49,6 +49,9 @@ build-*/
 *.xcodeproj
 *.xcworkspace
 .vs/
+
+# Test images
+test_images/
 .vscode/
 .idea/
 
