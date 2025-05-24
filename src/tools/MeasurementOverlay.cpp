@@ -304,11 +304,12 @@ void MeasurementOverlay::drawMeasurementText(QPainter *painter, const QVector<QP
     // 각 점 사이의 거리 표시
     if (m_tool->mode() == MeasurementTool::Mode::Distance && points.size() > 1) {
         for (int i = 1; i < points.size(); ++i) {
-            const QPointF p1 = mapToViewport(points[i-1]);
-            const QPointF p2 = mapToViewport(points[i]);
-            const QPointF mid = (p1 + p2) / 2;
+            const QPointF p1 = points[i-1];
+            const QPointF p2 = points[i];
+            const QPointF mid = (mapToViewport(p1) + mapToViewport(p2)) / 2;
             
-            const double dist = m_tool->calculateDistance(p1, p2) * m_tool->pixelScale();
+            // Use the public method to calculate distance
+            const double dist = m_tool->distanceBetween(p1, p2) * m_tool->pixelScale();
             const QString distText = QString("%1m").arg(dist, 0, 'f', 1);
             
             QRectF textRect = painter->fontMetrics().boundingRect(distText);
@@ -344,7 +345,10 @@ void MeasurementOverlay::drawHoverFeedback(QPainter *painter, const QPointF &pos
     
     // 현재까지의 거리 또는 면적 미리보기
     if (m_tool->mode() == MeasurementTool::Mode::Distance && m_tool->points().size() >= 1) {
-        const double dist = m_tool->calculateDistance(m_tool->points().last(), mapToViewport(pos)) * m_tool->pixelScale();
+        // Convert the hover position from viewport to image coordinates
+        QPointF imagePos = pos;
+        // Use the public method to calculate distance
+        const double dist = m_tool->distanceBetween(m_tool->points().last(), imagePos) * m_tool->pixelScale();
         const QString text = QString("%1m").arg(dist, 0, 'f', 1);
         
         QFont font = painter->font();

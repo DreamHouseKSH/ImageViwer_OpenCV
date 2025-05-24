@@ -374,14 +374,61 @@ bool MainWindow::saveFile(const QString& fileName) {
 }
 
 void MainWindow::loadFile(const QString& fileName) {
-    if (!m_tileView->loadImage(fileName)) {
-        QMessageBox::warning(this, tr("Error"), 
-                           tr("Could not load image %1").arg(fileName));
+    qDebug() << "[MainWindow] Loading file:" << fileName;
+    
+    QFileInfo fileInfo(fileName);
+    
+    // Check if file exists and is readable
+    if (!fileInfo.exists()) {
+        qCritical() << "[MainWindow] File does not exist:" << fileName;
+        QMessageBox::critical(this, tr("File Not Found"), 
+                            tr("The file does not exist:\n%1").arg(fileName));
         return;
     }
     
+    if (!fileInfo.isReadable()) {
+        qCritical() << "[MainWindow] File is not readable (check permissions):" << fileName;
+        QMessageBox::critical(this, tr("Permission Denied"), 
+                            tr("Unable to read the file. Please check file permissions.\n%1")
+                            .arg(fileName));
+        return;
+    }
+    
+    qDebug() << "[MainWindow] File exists and is readable, size:" 
+             << fileInfo.size() / (1024.0 * 1024.0) << "MB";
+    
+    // Check file size to prevent loading extremely large files
+    const qint64 maxFileSize = 1024 * 1024 * 500; // 500MB
+    if (fileInfo.size() > maxFileSize) {
+        qWarning() << "[MainWindow] Large file detected:" << fileInfo.size() / (1024.0 * 1024.0) << "MB";
+        QMessageBox::StandardButton reply;
+        reply = QMessageBox::question(this, tr("Large File"),
+                                    tr("The file is very large (%1 MB). This may cause performance issues.\n"
+                                       "Do you want to continue?")
+                                    .arg(fileInfo.size() / (1024.0 * 1024.0), 0, 'f', 1),
+                                    QMessageBox::Yes | QMessageBox::No);
+        if (reply != QMessageBox::Yes) {
+            return;
+        }
+    }
+    
+    // Show loading message
+    statusBar()->showMessage(tr("Loading %1...").arg(fileInfo.fileName()));
+    QApplication::processEvents();
+    
+    // Try to load the image
+    if (!m_tileView->loadImage(fileName)) {
+        QMessageBox::critical(this, tr("Error Loading Image"), 
+                            tr("Failed to load the image. The file may be corrupted or in an unsupported format.\n\n"
+                               "File: %1")
+                            .arg(fileName));
+        statusBar()->clearMessage();
+        return;
+    }
+    
+    // Update UI
     setCurrentFile(fileName);
-    statusBar()->showMessage(tr("Loaded %1").arg(QFileInfo(fileName).fileName()), 2000);
+    statusBar()->showMessage(tr("Loaded %1").arg(fileInfo.fileName()), 2000);
 }
 
 void MainWindow::setCurrentFile(const QString& fileName) {

@@ -54,15 +54,7 @@ private slots:
     void updateActions();
     void updateWindowTitle();
 
-private:
-    // UI creation
-    void createActions();
-    void createMenus();
-    void createToolBars();
-    void createStatusBar();
-    
     // Helper functions
-    void loadFile(const QString& fileName);
     bool saveFile(const QString& fileName);
     void setCurrentFile(const QString& fileName);
     void updateRecentFileActions();
@@ -70,6 +62,17 @@ private:
     void writeSettings();
     bool hasRecentFiles() const;
     void initializeImageFileDialog(QFileDialog &dialog, QFileDialog::AcceptMode acceptMode);
+    
+public:
+    // File operations
+    void loadFile(const QString& fileName);
+    
+private:
+    // UI creation
+    void createActions();
+    void createMenus();
+    void createToolBars();
+    void createStatusBar();
     
     // Member variables
     std::unique_ptr<TileView> m_tileView;

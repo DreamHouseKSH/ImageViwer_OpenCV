@@ -108,8 +108,9 @@ signals:
     
     /**
      * @brief Emitted when the image is loaded
+     * @param filePath Path to the loaded image file
      */
-    void imageLoaded();
+    void imageLoaded(const QString& filePath);
     
 protected:
     // Event handlers

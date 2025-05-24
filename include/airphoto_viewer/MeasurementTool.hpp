@@ -121,6 +121,16 @@ public:
      */
     double pixelScale() const;
 
+    /**
+     * @brief 두 점 사이의 거리를 계산하여 반환합니다.
+     * @param p1 첫 번째 점
+     * @param p2 두 번째 점
+     * @return 두 점 사이의 거리 (픽셀 단위)
+     */
+    double distanceBetween(const QPointF &p1, const QPointF &p2) const {
+        return calculateDistance(p1, p2);
+    }
+
 signals:
     /**
      * @brief 측정이 업데이트될 때 발생하는 시그널

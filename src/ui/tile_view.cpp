@@ -1,6 +1,7 @@
 #include "airphoto_viewer/ui/tile_view.h"
 #include "airphoto_viewer/core/tile.h"
 #include <QPainter>
+#include <QApplication>
 #include <QWheelEvent>
 #include <QDebug>
 #include <QtMath>
@@ -40,18 +41,54 @@ TileView::TileView(QWidget* parent)
 TileView::~TileView() = default;
 
 bool TileView::loadImage(const QString& filePath) {
+    qDebug() << "[TileView] Starting to load image:" << filePath;
+    
+    // Reset any previous state
     stopAnimation();
     
-    if (!m_tileCache->setSourceImage(filePath.toStdString())) {
+    // Clear any existing image
+    m_tileCache->clear();
+    
+    // Update the view to show loading state
+    update();
+    QApplication::processEvents();
+    
+    qDebug() << "[TileView] Attempting to load image using TileCache...";
+    
+    // Try to load the new image
+    bool success = m_tileCache->setSourceImage(filePath.toStdString());
+    
+    if (!success) {
+        qCritical() << "[TileView] Failed to load image using TileCache:" << filePath;
+        
+        // Try loading with QImage to verify the file can be read
+        QImage testImage;
+        if (testImage.load(filePath)) {
+            qDebug() << "[TileView] Image loaded successfully with QImage, size:" 
+                     << testImage.size() << "format:" << testImage.format();
+        } else {
+            qCritical() << "[TileView] QImage also failed to load the image";
+        }
+        
+        // Clear the cache again to ensure we're in a clean state
+        m_tileCache->clear();
+        update();
         return false;
     }
+    
+    qDebug() << "[TileView] Image loaded successfully, resetting view...";
     
     // Reset view to fit the new image
     resetView();
     
-    emit imageLoaded();
+    // Update the display
+    updateTileGrid();
     update();
     
+    // Notify that the image has been loaded
+    emit imageLoaded(filePath);
+    
+    qDebug() << "[TileView] Image loading completed successfully";
     return true;
 }
 

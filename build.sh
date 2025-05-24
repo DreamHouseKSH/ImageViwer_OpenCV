@@ -7,7 +7,18 @@ set -e
 BUILD_TYPE=Release
 CLEAN_BUILD=false
 RUN_EXAMPLE=false
-NUM_JOBS=$(nproc)
+
+# Get number of CPU cores (macOS compatible)
+if command -v nproc >/dev/null 2>&1; then
+    # Linux
+    NUM_JOBS=$(nproc)
+elif command -v sysctl >/dev/null 2>&1; then
+    # macOS
+    NUM_JOBS=$(sysctl -n hw.ncpu)
+else
+    # Fallback
+    NUM_JOBS=4
+fi
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -40,7 +51,8 @@ echo "   Build type: $BUILD_TYPE"
 echo "   Jobs: $NUM_JOBS"
 
 # Create build directory if it doesn't exist
-BUILD_DIR="build-${BUILD_TYPE,,}"
+# Convert BUILD_TYPE to lowercase for directory name
+BUILD_DIR="build-$(echo "$BUILD_TYPE" | tr '[:upper:]' '[:lower:]')"
 mkdir -p "$BUILD_DIR"
 
 # Clean build directory if requested

@@ -1,5 +1,7 @@
 #include "airphoto_viewer/core/tile_cache.h"
 #include <QDebug>
+#include <QFileInfo>
+#include <QString>
 #include <chrono>
 #include <numeric>
 #include <opencv2/opencv.hpp>
@@ -92,14 +94,54 @@ TileCache::~TileCache() {
 bool TileCache::setSourceImage(const std::string& imagePath) {
     std::lock_guard<std::mutex> lock(cacheMutex);
     
+    qDebug() << "[TileCache] Starting to load image:" << QString::fromStdString(imagePath);
+    
     // Clear existing cache
     clear();
     
-    // Try to load the image
-    sourceImage = cv::imread(imagePath, cv::IMREAD_UNCHANGED);
+    // Check if file exists and is readable
+    QFileInfo fileInfo(QString::fromStdString(imagePath));
+    if (!fileInfo.exists()) {
+        qCritical() << "[TileCache] File does not exist:" << fileInfo.absoluteFilePath();
+        return false;
+    }
+    if (!fileInfo.isReadable()) {
+        qCritical() << "[TileCache] File is not readable (check permissions):" << fileInfo.absoluteFilePath();
+        return false;
+    }
     
-    if (sourceImage.empty()) {
-        qWarning() << "Failed to load image:" << QString::fromStdString(imagePath);
+    qDebug() << "[TileCache] File exists and is readable, size:" 
+             << fileInfo.size() / (1024.0 * 1024.0) << "MB";
+    
+    // Try to load the image
+    try {
+        qDebug() << "[TileCache] Attempting to load with OpenCV...";
+        sourceImage = cv::imread(imagePath, cv::IMREAD_UNCHANGED);
+        
+        if (sourceImage.empty()) {
+            qCritical() << "[TileCache] OpenCV failed to load image (empty result):" 
+                       << fileInfo.absoluteFilePath()
+                       << "(File exists:" << fileInfo.exists() 
+                       << "Readable:" << fileInfo.isReadable() << ")";
+            
+            // Try alternative approach for debugging
+            QImage testImage;
+            if (testImage.load(fileInfo.absoluteFilePath())) {
+                qDebug() << "[TileCache] Image loaded successfully with QImage, size:" 
+                         << testImage.size() << "format:" << testImage.format();
+            } else {
+                qCritical() << "[TileCache] QImage also failed to load the image";
+            }
+            
+            return false;
+        }
+    } catch (const cv::Exception& e) {
+        qCritical() << "[TileCache] OpenCV Exception while loading image:" << e.what()
+                   << "(file:" << fileInfo.absoluteFilePath() << ")";
+        return false;
+    } catch (const std::exception& e) {
+        qCritical() << "[TileCache] Exception while loading image:" << e.what()
+                   << "(file:" << fileInfo.absoluteFilePath() << ")";
         return false;
     }
     
